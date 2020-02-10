@@ -1,0 +1,10 @@
+/**
+* Created by wu on 2020/2/6.
+*/
+
+#ifndef OPENCVDEMO2_GUIDEFILTER_H
+#define OPENCVDEMO2_GUIDEFILTER_H
+
+#endif //OPENCVDEMO2_GUIDEFILTER_H
+
+
