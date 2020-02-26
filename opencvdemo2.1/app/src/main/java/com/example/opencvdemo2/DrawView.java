@@ -40,11 +40,12 @@ public class DrawView extends View {
     private boolean show = false;   //显示结果
 
     public Mat mask;    //掩码蒙版
-    public Mat binaryMask;  //二值化蒙版
 
     private static final int drawWithLinebg = 10;   //背景
     private static final int drawWithLinefg = 11;   //前景
     private static final int drawWithRect = 0;
+
+    public static final String TAG = "DrawView";
 
     static {
         System.loadLibrary("native-lib");
@@ -57,7 +58,7 @@ public class DrawView extends View {
         //以传入的Bitmap作为画布
         originalBitmap = Bitmap.createBitmap(b).copy(Bitmap.Config.ARGB_8888, true);
         new1Bitmap = Bitmap.createBitmap(originalBitmap);
-        mask = new Mat(b.getHeight(), b.getWidth(), CvType.CV_8UC3);
+        mask = new Mat(b.getHeight(), b.getWidth(), CvType.CV_8UC1);
     }
 
     public void setMode(int mode){
@@ -117,15 +118,13 @@ public class DrawView extends View {
         if(isMove){
             if(mode == drawWithLinebg){
                 canvas.drawLine(startLineX, startLineY, clickX, clickY, paint);
-                byte[] data = new byte[]{2, 2, 2};
-                mask.put((int)clickX, (int)clickY, data);
+                mask.put((int)clickX, (int)clickY, 2);
                 startLineX = clickX;    //更新位置，以极小的间隙逼近连续效果
                 startLineY = clickY;
             }
             else if(mode == drawWithLinefg){
                 canvas.drawLine(startLineX, startLineY, clickX, clickY, paint);
-                byte[] data = new byte[]{3, 3, 3};
-                mask.put((int)clickX, (int)clickY, data);
+                mask.put((int)clickX, (int)clickY, 3);
                 startLineX = clickX;    //更新位置，以极小的间隙逼近连续效果
                 startLineY = clickY;
             }
@@ -164,40 +163,12 @@ public class DrawView extends View {
     }
 
     public void guideFilter(){
-        Bitmap bitmap = Bitmap.createBitmap(originalBitmap);
-        Mat P = new Mat();
-        Utils.bitmapToMat(bitmap, P);
-        Imgproc.cvtColor(P, P, Imgproc.COLOR_BGR2GRAY); //转为灰度图
-        P.convertTo(P, CvType.CV_64FC1, 1.0 / 255); //归一化
-        int h = mask.rows(), w = mask.cols();
-        int r = w / 10; //使用最小边的十分之一
-        if (h < w){
-            r = h / 10;
-        }
-        double eps = 0.000001;
-
-        //下面的代码有问题，尝试改为bitmap的代码
-
-        int[] I_ = new int[h * w];
-        int[] P_ = new int[h * w];
-        for (int i = 0; i < h; i++){
-            for (int j = 0; j < w; j++){
-                double[] data = mask.get(i, j);
-                double[] pix = P.get(i, j);
-                if ((int)data[0] == 3){
-                    I_[i * w + j] = 1;
-                }
-                P_[i * w + j] = (int)pix[0];
-            }
-        }
-        binaryMask = new Mat(h, w, CvType.CV_8UC1);
-        int[] result = GuideFilter(I_, P_, r, eps, h, w);
-        for (int i = 0; i < h; i++){
-            for (int j = 0; j < w; j++){
-                binaryMask.put(i, j, result[i * w + j]);
-            }
-        }
-        P.release();
+        new2Bitmap = Bitmap.createBitmap(originalBitmap);
+        //将mask转为bitmap，便于处理
+        Bitmap binaryBitmap = Bitmap.createBitmap(new2Bitmap.getWidth(), new2Bitmap.getHeight(),Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(mask, binaryBitmap);
+        //引导滤波
+        GuideFilter(new2Bitmap, binaryBitmap);
     }
 
     public void showFront(){
@@ -216,10 +187,8 @@ public class DrawView extends View {
             spiltmode = Imgproc.GC_INIT_WITH_MASK;
         }
         Imgproc.grabCut(src, mask, rect, bgModel, fgModel, 3, spiltmode);   //进行GrabCut操作
+        compare(mask, new Scalar(3), mask, 0);
         guideFilter();  //进行引导滤波
-        compare(binaryMask, new Scalar(1), result, 0);
-        src.copyTo(dst, result);
-        Utils.matToBitmap(dst, new2Bitmap);
         show = true;
         src.release();
         dst.release();
@@ -240,6 +209,7 @@ public class DrawView extends View {
         }
     }
 
-    public static native int[] GuideFilter(int[] I, int[] P, int r, double eps, int h, int w);
+    //声明C++JNI函数
+    public static native void GuideFilter(Bitmap I, Bitmap P);
 
 }

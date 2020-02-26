@@ -3,25 +3,62 @@
 #include <GuideFilter.h>
 #include <iostream>
 #include <android/bitmap.h>
+#include <android/log.h>
+#define TAG "jni_string"
+#define LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG,TAG,__VA_ARGS__)
+#define MAKE_RGBA(r, g, b, a) (((a) << 24) | ((r) << 16) | ((g) << 8) | (b))//???
+#define RGBA_A(p) (((p) & 0xFF000000) >> 24)
 
-extern "C" JNIEXPORT jintArray JNICALL
+extern "C" JNIEXPORT void JNICALL
 Java_com_example_opencvdemo2_DrawView_GuideFilter(
-JNIEnv *env, jclass type, jintArray I_, jintArray P_, jint r, jdouble eps, jint h, jint w ){
-    jint *imageI = env->GetIntArrayElements(I_, NULL);
-    Mat I(h, w, CV_8UC1, (unsigned char *) imageI);
-    jint *imageP = env->GetIntArrayElements(P_, NULL);
-    Mat P(h, w, CV_8UC1, (unsigned char *) imageP);
-    Mat output = guidefilter(I, P, r, eps);
-    int size = output.cols * output.rows;
-    jintArray  result = env->NewIntArray(size);
-    int outInt[size];
-    for (int i = 0; i < output.rows; i++){
-        for (int j = 0; j < output.cols; j++) {
-            outInt[i * w + j] = output.at<uchar>(i, j);
+        JNIEnv *env, jclass type, jobject bitmapI, jobject bitmapP){
+    if (bitmapI == NULL || bitmapP == NULL){
+        return;
+    }
+    AndroidBitmapInfo infoI, infoP;
+    memset(&infoI, 0, sizeof(infoI));   //初始化置零
+    memset(&infoP, 0, sizeof(infoP));   //初始化置零
+    AndroidBitmap_getInfo(env, bitmapI, &infoI);
+    AndroidBitmap_getInfo(env, bitmapP, &infoP);
+    void *pixelsI = NULL;
+    AndroidBitmap_lockPixels(env, bitmapI, &pixelsI);
+    Mat I(infoI.height, infoI.width, CV_8UC4, pixelsI);
+    Mat gray;
+    cvtColor(I, gray, CV_BGRA2GRAY);
+    cvtColor(I, I, CV_BGRA2RGB);
+    gray.convertTo(gray, CV_64FC1, 1.0 / 255);
+
+    void *pixelsP = NULL;
+    AndroidBitmap_lockPixels(env, bitmapP, &pixelsP);
+    Mat P(infoP.height, infoP.width, CV_8UC4, pixelsP);
+    cvtColor(P, P, CV_BGRA2GRAY);
+    P.convertTo(P, CV_64FC1, 1.0 / 255);
+
+    int r1 = I.cols / 10;
+    if (I.cols > I.rows){
+        r1 = I.rows / 10;
+    }
+    Mat output = guidefilter(gray, P, r1, 0.000001);
+
+    output.convertTo(output, CV_8UC1);
+    Mat dst[3] = {output, output, output};
+    Mat dsts;
+    merge(dst, 3, dsts);
+    Mat result = dsts.mul(I);
+
+    int a = 0, r = 0, g = 0, b = 0;
+
+    for (int y = 0; y < infoI.height; ++y) {
+        for (int x = 0; x < infoI.width; ++x) {
+            int *pixel = NULL;
+            pixel = ((int *) pixelsI) + y * infoI.width + x;
+            r = result.at<Vec3b>(y, x)[0];
+            g = result.at<Vec3b>(y, x)[1];
+            b = result.at<Vec3b>(y, x)[2];
+            a = RGBA_A(*pixel);
+            *pixel = MAKE_RGBA(r, g, b, a);
         }
     }
-    env->SetIntArrayRegion(result, 0, size, outInt);
-    env->ReleaseIntArrayElements(I_, imageI, 0);
-    env->ReleaseIntArrayElements(P_, imageP, 0);
-    return result;
+    AndroidBitmap_unlockPixels(env, bitmapI);
+    AndroidBitmap_unlockPixels(env, bitmapP);
 }
