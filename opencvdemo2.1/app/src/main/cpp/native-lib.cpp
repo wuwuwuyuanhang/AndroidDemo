@@ -18,14 +18,14 @@ Java_com_example_opencvdemo2_DrawView_GuideFilter(
     AndroidBitmapInfo infoI, infoP;
     memset(&infoI, 0, sizeof(infoI));   //初始化置零
     memset(&infoP, 0, sizeof(infoP));   //初始化置零
-    AndroidBitmap_getInfo(env, bitmapI, &infoI);
+    AndroidBitmap_getInfo(env, bitmapI, &infoI);    //获取图片信息
     AndroidBitmap_getInfo(env, bitmapP, &infoP);
     void *pixelsI = NULL;
-    AndroidBitmap_lockPixels(env, bitmapI, &pixelsI);
-    Mat I(infoI.height, infoI.width, CV_8UC4, pixelsI);
+    AndroidBitmap_lockPixels(env, bitmapI, &pixelsI);   //获取像素
+    Mat I(infoI.height, infoI.width, CV_8UC4, pixelsI); //创建Mat对象，并将像素进行赋值
     Mat gray;
-    cvtColor(I, gray, CV_BGRA2GRAY);
-    cvtColor(I, I, CV_BGRA2RGB);
+    cvtColor(I, gray, CV_BGRA2GRAY);    //注意Bitmap Config。8888对于BGRA通道
+    cvtColor(I, I, CV_BGRA2RGB);        //转为RGB通道
     gray.convertTo(gray, CV_64FC1, 1.0 / 255);
 
     void *pixelsP = NULL;
@@ -34,11 +34,11 @@ Java_com_example_opencvdemo2_DrawView_GuideFilter(
     cvtColor(P, P, CV_BGRA2GRAY);
     P.convertTo(P, CV_64FC1, 1.0 / 255);
 
-    int r1 = I.cols / 10;
+    int r1 = I.cols / 100;          //引导滤波参数设置
     if (I.cols > I.rows){
-        r1 = I.rows / 10;
+        r1 = I.rows / 100;
     }
-    Mat output = guidefilter(gray, P, r1, 0.000001);
+    Mat output = guidefilter(gray, P, r1, 0.001);
 
     output.convertTo(output, CV_8UC1);
     Mat dst[3] = {output, output, output};
@@ -59,6 +59,6 @@ Java_com_example_opencvdemo2_DrawView_GuideFilter(
             *pixel = MAKE_RGBA(r, g, b, a);
         }
     }
-    AndroidBitmap_unlockPixels(env, bitmapI);
+    AndroidBitmap_unlockPixels(env, bitmapI);   //释放
     AndroidBitmap_unlockPixels(env, bitmapP);
 }

@@ -95,6 +95,7 @@ public class DrawView extends View {
         if(mode == drawWithRect){
             clearRect();
         }
+        invalidate();
         if(show){
             canvas.drawBitmap(new2Bitmap, 0, 0, null);
         }
@@ -118,13 +119,13 @@ public class DrawView extends View {
         if(isMove){
             if(mode == drawWithLinebg){
                 canvas.drawLine(startLineX, startLineY, clickX, clickY, paint);
-                mask.put((int)clickX, (int)clickY, 2);
+                mask.put((int)clickX, (int)clickY, 0);
                 startLineX = clickX;    //更新位置，以极小的间隙逼近连续效果
                 startLineY = clickY;
             }
             else if(mode == drawWithLinefg){
                 canvas.drawLine(startLineX, startLineY, clickX, clickY, paint);
-                mask.put((int)clickX, (int)clickY, 3);
+                mask.put((int)clickX, (int)clickY, 1);
                 startLineX = clickX;    //更新位置，以极小的间隙逼近连续效果
                 startLineY = clickY;
             }
