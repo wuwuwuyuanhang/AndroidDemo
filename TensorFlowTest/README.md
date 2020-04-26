@@ -2,7 +2,7 @@
  * @Author: wuwuwu
  * @Date: 2020-04-20 17:07:05
  * @LastEditors: wuwuwu
- * @LastEditTime: 2020-04-22 09:40:26
+ * @LastEditTime: 2020-04-26 10:17:23
  * @Description: 
  -->
 # TensorFlow Lite
@@ -87,7 +87,7 @@ private ByteBuffer convertBitmapToByteBuffer(Bitmap bitmap) {
             float r = input >> (16) & 0xFF;
             float g = input >> (8) & 0xFF;
             float b = input & 0xFF;
-            float gray = (255.0f - (r * 0.2126f + g * 0.7152f + b * 0.722f)) / 255.0f;
+            float gray = (255.0f - (r * 0.2126f + g * 0.7152f + b * 0.0722f)) / 255.0f;
             if (gray > 1.0f){
                 gray = 1.0f;
             }
